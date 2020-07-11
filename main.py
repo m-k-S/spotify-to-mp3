@@ -46,7 +46,7 @@ if __name__ == "__main__":
             os.mkdir(opt.playlist)
         DownloadOpts['outtmpl'] = './{}/%(title)s.%(ext)s'.format(opt.playlist)
     else:
-        DownloadOpts['outtmpl'] = './{}/%(title)s.%(ext)s'.format(opts.output)
+        DownloadOpts['outtmpl'] = './{}/%(title)s.%(ext)s'.format(opt.output)
 
     token = prompt_for_user_token(client_id=opt.client_id,
                                   client_secret=opt.client_secret,
