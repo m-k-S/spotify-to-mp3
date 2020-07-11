@@ -1,5 +1,6 @@
 import argparse
 import os
+import time
 
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
@@ -7,6 +8,8 @@ from spotipy.util import prompt_for_user_token
 
 from youtube_utils import YoutubeSearch, DownloadOpts
 import youtube_dl
+
+from mutagen.easyid3 import EasyID3
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--client_id', help='Spotify API client ID')
@@ -44,9 +47,11 @@ if __name__ == "__main__":
     if opt.output is None:
         if not os.path.isdir(opt.playlist):
             os.mkdir(opt.playlist)
-        DownloadOpts['outtmpl'] = './{}/%(title)s.%(ext)s'.format(opt.playlist)
+        playlist_dir = opt.playlist
     else:
-        DownloadOpts['outtmpl'] = './{}/%(title)s.%(ext)s'.format(opt.output)
+        playlist_dir = opt.output
+
+    DownloadOpts['download_archive'] = "./{}/{}".format(playlist_dir, "files.txt")
 
     token = prompt_for_user_token(client_id=opt.client_id,
                                   client_secret=opt.client_secret,
@@ -60,11 +65,37 @@ if __name__ == "__main__":
     playlist_id = get_playlist_id(opt.username, opt.playlist)
     playlist_tracks = get_playlist_tracks(opt.username, playlist_id)
 
-    query_terms = [track['track']['artists'][0]['name'] + ' ' + track['track']['name'] for track in playlist_tracks]
+    album = [track['track']['album']['name'] for track in playlist_tracks]
+    query_terms = [track['track']['artists'][0]['name'] + ' - ' + track['track']['name'] for track in playlist_tracks]
 
-    for query in query_terms:
-        query_results = YoutubeSearch(query, max_results=1).to_dict()
-        url_suffix = query_results[0]['url_suffix']
+    for idx, query in enumerate(query_terms):
+        query_results = YoutubeSearch(query, max_results=4).to_dict()
+        url_suffix = None
+        for res in query_results:
+            if "mv" in res['title'].lower() or 'video' in res['title'].lower() or 'live' in res['title'].lower():
+                continue
+            else:
+                url_suffix = res['url_suffix']
+                break
 
-        with youtube_dl.YoutubeDL(DownloadOpts) as ydl:
-           ydl.download([url_prefix + url_suffix])
+        if url_suffix is None:
+            print ("Could not find suitable video for {}".format(query))
+            continue
+
+        song_title = query.split(" - ")[1]
+        if "/" in song_title:
+            song_title = "*".join(song_title.split("/"))
+        artist = query.split(" - ")[0]
+        DownloadOpts['outtmpl'] = str('./{}/{}.%(ext)s'.format(playlist_dir, song_title))
+        DownloadOpts['postprocessor-args'] = str("-metadata album={} -metadata author={}".format(album[idx], artist))
+
+        try:
+            with youtube_dl.YoutubeDL(DownloadOpts) as ydl:
+               ydl.download([url_prefix + url_suffix])
+        except youtube_dl.utils.DownloadError:
+           print ("Could not download {}".format(query))
+
+        metatag = EasyID3('./{}/{}.mp3'.format(playlist_dir, song_title))
+        metatag['album'] = album[idx]
+        metatag['artist'] = artist
+        metatag.save()

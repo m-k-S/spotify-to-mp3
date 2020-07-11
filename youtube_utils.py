@@ -10,7 +10,7 @@ DownloadOpts = {
         'preferredquality': '192',
     }],
     'outtmpl': './raw/%(title)s.%(ext)s',
-    'restrictfilenames': True,
+    'restrictfilenames': True
 }
 
 class YoutubeSearch:
@@ -55,7 +55,7 @@ class YoutubeSearch:
                     thumb["url"] for thumb in video_data["thumbnail"]["thumbnails"]
                 ]
                 res["title"] = video_data["title"]["runs"][0]["text"]
-                res["channel"] = video_data["longBylineText"]["runs"][0]["text"]
+                # res["channel"] = video_data["longBylineText"]["runs"][0]["text"]
                 res["duration"] = video_data.get("lengthText", {}).get("simpleText", 0)
                 res["views"] = video_data.get("viewCountText", {}).get("simpleText", 0)
                 res["url_suffix"] = video_data["navigationEndpoint"]["commandMetadata"][
